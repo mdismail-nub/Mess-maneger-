@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#065f46" stop-opacity="0.2" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#064e3b" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <rect x="20" y="20" width="472" height="472" rx="96" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4" />
+
+  <!-- Inner Plate / Dish Circle -->
+  <g filter="url(#shadow)">
+    <!-- Food Cloche / Plate Representation -->
+    <circle cx="256" cy="270" r="140" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-width="8" stroke-dasharray="6 4" />
+    
+    <!-- Bowl / Meal Cloche Dome -->
+    <path d="M 148 260 C 148 180, 210 136, 256 136 C 302 136, 364 180, 364 260 Z" fill="#ffffff" />
+    
+    <!-- Cloche Handle / Taka Accent -->
+    <ellipse cx="256" cy="120" rx="20" ry="14" fill="#ffffff" />
+    <circle cx="256" cy="120" r="7" fill="#059669" />
+    
+    <!-- Plate base line -->
+    <rect x="132" y="264" width="248" height="20" rx="10" fill="#ecfdf5" />
+    <path d="M 172 284 L 340 284 L 324 304 L 188 304 Z" fill="#a7f3d0" />
+
+    <!-- Currency / Taka Sign Accent Overlay Badge -->
+    <g transform="translate(300, 240)">
+      <circle cx="56" cy="56" r="50" fill="#f59e0b" stroke="#ffffff" stroke-width="6" />
+      <!-- Stylized Bengali Taka ৳ symbol -->
+      <text x="56" y="76" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="900" fill="#ffffff" text-anchor="middle">৳</text>
+    </g>
+
+    <!-- Warm Steam Elements -->
+    <path d="M 216 100 Q 210 70 224 50" fill="none" stroke="#a7f3d0" stroke-width="6" stroke-linecap="round" />
+    <path d="M 256 90 Q 264 60 252 40" fill="none" stroke="#a7f3d0" stroke-width="7" stroke-linecap="round" />
+    <path d="M 296 100 Q 302 70 288 50" fill="none" stroke="#a7f3d0" stroke-width="6" stroke-linecap="round" />
+  </g>
+
+  <!-- App Name subtle footer mark -->
+  <text x="256" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">MESSMATE</text>
+  <text x="256" y="452" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="600" fill="#a7f3d0" text-anchor="middle" letter-spacing="4">BACHELOR LIVING</text>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "MessMate - Mess Meal & Expense Manager",
+  "description": "Modern offline-first mess management app for bachelor houses. Track daily meals, market expenses, dynamic meal rates, member payments, and calculate monthly settlements effortlessly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
