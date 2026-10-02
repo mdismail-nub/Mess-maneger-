@@ -22,6 +22,7 @@ import {
   putToStore,
 } from '../db/indexedDB';
 import {
+  autoDetectExpenseType,
   calculateMonthSummary,
   calculateSettlement,
 } from '../utils/calculations';
@@ -40,7 +41,9 @@ interface AppContextType {
   summary: MonthFinancialSummary;
   settlementTransactions: SettlementTransaction[];
   setActiveMonthId: (id: string) => void;
-  createMonth: (name: string, startDate: string, copyMembers?: boolean) => Promise<Month>;
+  createMonth: (name: string, startDate: string, copyMembers?: boolean, budget?: number) => Promise<Month>;
+  updateMonth: (month: Month) => Promise<void>;
+  setMonthBudget: (monthId: string, budget: number | undefined) => Promise<void>;
   toggleMonthClose: (monthId: string) => Promise<void>;
   addMember: (data: Omit<Member, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Member>;
   updateMember: (member: Member) => Promise<void>;
@@ -98,10 +101,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Sort months newest first
       fetchedMonths.sort((a, b) => b.startDate.localeCompare(a.startDate));
+
+      // Safe migration & verification of existing expenses to guarantee separation
+      let hasExpenseUpdates = false;
+      const validatedExpenses: Expense[] = fetchedExpenses.map((exp) => {
+        let updatedExp = { ...exp };
+        const detection = autoDetectExpenseType(exp.title, exp.category);
+
+        // 1. Missing or invalid type
+        if (exp.type !== 'meal' && exp.type !== 'shared') {
+          hasExpenseUpdates = true;
+          updatedExp.type = detection.type;
+          updatedExp.splitMethod = exp.splitMethod || (detection.type === 'shared' ? 'equal' : undefined);
+          updatedExp.needsReview = !detection.isConfident;
+        }
+        // 2. Misclassified shared expense: was saved as 'meal', but is explicitly a utility/shared bill (e.g. Wi-Fi, Gas, Electricity)
+        else if (exp.type === 'meal' && detection.type === 'shared' && detection.isConfident) {
+          hasExpenseUpdates = true;
+          updatedExp.type = 'shared';
+          updatedExp.splitMethod = exp.splitMethod || 'equal';
+          updatedExp.needsReview = false;
+        }
+
+        return updatedExp;
+      });
+
+      if (hasExpenseUpdates) {
+        await putManyToStore(STORES.EXPENSES, validatedExpenses);
+      }
+
       setMonths(fetchedMonths);
       setMembers(fetchedMembers);
       setMeals(fetchedMeals);
-      setExpenses(fetchedExpenses);
+      setExpenses(validatedExpenses);
       setPayments(fetchedPayments);
       setSettings(fetchedSettings);
 
@@ -171,7 +203,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [summary.memberSummaries]);
 
   // Month creation
-  const createMonth = async (name: string, startDate: string, copyMembers: boolean = true): Promise<Month> => {
+  const createMonth = async (
+    name: string,
+    startDate: string,
+    copyMembers: boolean = true,
+    budget?: number
+  ): Promise<Month> => {
     const id = `month_${startDate.slice(0, 7)}_${Math.random().toString(36).substring(2, 6)}`;
     const activeMemberIds = copyMembers
       ? members.filter((m) => m.status === 'active').map((m) => m.id)
@@ -181,6 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       name,
       startDate,
+      budget: budget !== undefined && budget > 0 ? budget : settings.defaultMonthlyBudget,
       isClosed: false,
       memberIds: activeMemberIds,
       createdAt: new Date().toISOString(),
@@ -193,6 +231,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshData();
     setActiveMonthId(id);
     return newMonth;
+  };
+
+  const updateMonth = async (month: Month) => {
+    const updated: Month = {
+      ...month,
+      updatedAt: new Date().toISOString(),
+    };
+    await putToStore(STORES.MONTHS, updated);
+    success(`Month "${month.name}" updated`);
+    await refreshData();
+  };
+
+  const setMonthBudget = async (monthId: string, budget: number | undefined) => {
+    const month = months.find((m) => m.id === monthId);
+    if (!month) return;
+    const updated: Month = {
+      ...month,
+      budget: budget && budget > 0 ? budget : undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    await putToStore(STORES.MONTHS, updated);
+    if (budget && budget > 0) {
+      await logActivity(
+        monthId,
+        `Updated monthly expense budget target to ${settings.currencySymbol}${budget.toLocaleString()}`,
+        'month'
+      );
+      success(`Monthly budget set to ${settings.currencySymbol}${budget.toLocaleString()}`);
+    } else {
+      await logActivity(monthId, `Removed monthly budget target`, 'month');
+      info(`Monthly budget target removed`);
+    }
+    await refreshData();
   };
 
   const toggleMonthClose = async (monthId: string) => {
@@ -587,6 +658,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: 'September 2026',
         startDate: '2026-09-01',
         endDate: '2026-09-30',
+        budget: 9000,
         isClosed: false,
         memberIds: ['mem_ismail', 'mem_rahim', 'mem_karim', 'mem_hasan'],
         createdAt: new Date().toISOString(),
@@ -679,6 +751,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           category: 'Vegetables',
           paidByMemberId: 'mem_hasan',
           type: 'meal',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 'exp_5',
+          monthId: 'month_2026-09',
+          title: 'High-speed Wi-Fi Internet',
+          amount: 1000,
+          date: '2026-09-08',
+          category: 'Utilities',
+          paidByMemberId: 'mem_ismail',
+          type: 'shared',
+          splitMethod: 'equal',
+          note: 'Shared household cost - does not affect meal rate',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -779,6 +865,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         settlementTransactions,
         setActiveMonthId,
         createMonth,
+        updateMonth,
+        setMonthBudget,
         toggleMonthClose,
         addMember,
         updateMember,

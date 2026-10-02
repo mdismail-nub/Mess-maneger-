@@ -1,4 +1,5 @@
 import {
+  BudgetAnalysis,
   Expense,
   MealEntry,
   Member,
@@ -24,6 +25,113 @@ export function calculateMealRate(totalMealExpenses: number, totalMeals: number)
   return Number((totalMealExpenses / totalMeals).toFixed(4));
 }
 
+// Known keywords for classifying expenses
+const SHARED_EXPENSE_KEYWORDS = [
+  'wifi', 'wi-fi', 'internet', 'net bill', 'broadband', 'router', 'dish', 'cable',
+  'electricity', 'electric', 'current bill', 'bijli', 'bijlee', 'power bill',
+  'gas', 'cylinder', 'lpg', 'gas bill',
+  'water', 'water bill', 'pani', 'panir bill',
+  'rent', 'house rent', 'room rent', 'flat rent', 'hostel fee', 'bhara', 'bari bhara',
+  'clean', 'cleaning', 'cleaner', 'bua', 'maid', 'cook', 'baburchi', 'garbage', 'moyla',
+  'utility', 'utilities', 'maintenance', 'repair', 'bulb', 'service charge', 'security', 'waste'
+];
+
+const MEAL_EXPENSE_KEYWORDS = [
+  'rice', 'chal', 'chaldal', 'bhat', 'polao',
+  'vegetable', 'vegetables', 'sobji', 'tarkari', 'torkari',
+  'fish', 'mach', 'machh', 'ilish', 'rui', 'katla',
+  'meat', 'mangsho', 'chicken', 'murgi', 'beef', 'goru', 'mutton', 'khasi',
+  'egg', 'eggs', 'dim',
+  'oil', 'tel', 'soyabean', 'mustard',
+  'spice', 'spices', 'moshla', 'masala',
+  'grocery', 'bazar', 'bazaar', 'food', 'meal',
+  'breakfast', 'lunch', 'dinner', 'nashta', 'nasta',
+  'dal', 'lentil', 'potato', 'alu', 'onion', 'peyaj', 'garlic', 'roshun',
+  'ginger', 'ada', 'chilli', 'morich', 'salt', 'lobon', 'noon', 'turmeric', 'holud',
+  'tea', 'cha', 'sugar', 'chini', 'milk', 'dudh', 'bread', 'ruti', 'paratha', 'biscuit',
+  'fruit', 'fruits', 'apple', 'banana', 'kola', 'orange', 'khejur', 'dates'
+];
+
+export function autoDetectExpenseType(
+  title: string = '',
+  category: string = ''
+): { type: 'meal' | 'shared'; isConfident: boolean; reason: string } {
+  const text = `${title} ${category}`.toLowerCase();
+
+  // If category is known utility/shared
+  const catLower = category.toLowerCase().trim();
+  if (
+    catLower === 'gas' ||
+    catLower === 'utilities' ||
+    catLower === 'wifi' ||
+    catLower === 'wi-fi' ||
+    catLower === 'internet' ||
+    catLower === 'electricity' ||
+    catLower === 'rent' ||
+    catLower === 'water' ||
+    catLower === 'cleaning' ||
+    catLower === 'maintenance'
+  ) {
+    return {
+      type: 'shared',
+      isConfident: true,
+      reason: `Category "${category}" is a household/shared utility`,
+    };
+  }
+
+  // Explicit check for shared keywords
+  const matchedShared = SHARED_EXPENSE_KEYWORDS.find((kw) => text.includes(kw));
+  // Explicit check for meal keywords
+  const matchedMeal = MEAL_EXPENSE_KEYWORDS.find((kw) => text.includes(kw));
+
+  // If title/category has strong shared keyword and no meal keyword
+  if (matchedShared && !matchedMeal) {
+    return {
+      type: 'shared',
+      isConfident: true,
+      reason: `Matches shared household keyword "${matchedShared}" (Wi-Fi, utility, etc.)`,
+    };
+  }
+
+  // If matches meal keyword
+  if (matchedMeal) {
+    return {
+      type: 'meal',
+      isConfident: true,
+      reason: `Matches food/grocery keyword "${matchedMeal}"`,
+    };
+  }
+
+  // Known default food categories
+  const defaultFoodCats = ['rice', 'vegetables', 'meat', 'fish', 'eggs', 'grocery', 'oil', 'spices', 'food'];
+  if (defaultFoodCats.includes(catLower)) {
+    return {
+      type: 'meal',
+      isConfident: true,
+      reason: `Category "${category}" is a standard meal category`,
+    };
+  }
+
+  // Not confident - default to meal but flag for review
+  return {
+    type: 'meal',
+    isConfident: false,
+    reason: 'Could not determine with high confidence',
+  };
+}
+
+export function isMealExpense(expense: Expense): boolean {
+  if (expense.type === 'meal') return true;
+  if (expense.type === 'shared') return false;
+  return autoDetectExpenseType(expense.title, expense.category).type === 'meal';
+}
+
+export function isSharedExpense(expense: Expense): boolean {
+  if (expense.type === 'shared') return true;
+  if (expense.type === 'meal') return false;
+  return autoDetectExpenseType(expense.title, expense.category).type === 'shared';
+}
+
 export function calculateSharedExpensesShares(
   expenses: Expense[],
   members: Member[],
@@ -35,7 +143,7 @@ export function calculateSharedExpensesShares(
     shares[m.id] = 0;
   });
 
-  const sharedExpenses = expenses.filter((e) => e.type === 'shared');
+  const sharedExpenses = expenses.filter((e) => isSharedExpense(e));
   const activeMembers = members.filter((m) => m.status === 'active');
   const splitGroup = activeMembers.length > 0 ? activeMembers : members;
 
@@ -59,7 +167,7 @@ export function calculateSharedExpensesShares(
         }
       }
     } else {
-      // Default: Equal Split
+      // Default: Equal Split among active members
       const equalShare = exp.amount / (splitGroup.length || 1);
       for (const m of splitGroup) {
         shares[m.id] = (shares[m.id] || 0) + equalShare;
@@ -126,19 +234,19 @@ export function calculateMonthSummary(
     totalMeals += subtotal;
   }
 
-  // Calculate expenses
+  // Calculate expenses - strictly separate meal expenses from shared expenses
   const monthExpenses = expenses.filter((e) => e.monthId === month.id);
   const totalMealExpenses = monthExpenses
-    .filter((e) => e.type === 'meal')
+    .filter((e) => isMealExpense(e))
     .reduce((sum, e) => sum + e.amount, 0);
 
   const totalSharedExpenses = monthExpenses
-    .filter((e) => e.type === 'shared')
+    .filter((e) => isSharedExpense(e))
     .reduce((sum, e) => sum + e.amount, 0);
 
   const totalExpenses = totalMealExpenses + totalSharedExpenses;
 
-  // Meal rate
+  // Meal rate = Total MEAL EXPENSES / Total Meals (Shared expenses NEVER affect meal rate)
   const currentMealRate = calculateMealRate(totalMealExpenses, totalMeals);
 
   // Shared expenses allocation
@@ -274,4 +382,140 @@ export function calculateSettlement(memberSummaries: MemberMonthSummary[]): Sett
   }
 
   return transactions;
+}
+
+export function calculateBudgetAnalysis(
+  month: Month | null,
+  totalExpenses: number,
+  expenses: Expense[],
+  currencySymbol: string = '৳'
+): BudgetAnalysis {
+  if (!month || !month.budget || month.budget <= 0) {
+    return {
+      hasBudget: false,
+      targetBudget: 0,
+      totalSpent: totalExpenses,
+      remainingBudget: 0,
+      percentSpent: 0,
+      daysInMonth: 30,
+      elapsedDays: 1,
+      remainingDays: 29,
+      dailyAverage: 0,
+      recommendedDailyRemaining: 0,
+      projectedTotalSpend: totalExpenses,
+      projectedPercent: 0,
+      isOverBudget: false,
+      isTrendingOverBudget: false,
+      excessAmount: 0,
+      status: 'none',
+      warningMessage: null,
+      adviceMessage: null,
+    };
+  }
+
+  const targetBudget = month.budget;
+  const totalSpent = Number(totalExpenses.toFixed(2));
+  const remainingBudget = Number((targetBudget - totalSpent).toFixed(2));
+  const percentSpent = Number(((totalSpent / targetBudget) * 100).toFixed(1));
+
+  // Determine days in month from month.startDate (YYYY-MM-DD)
+  let daysInMonth = 30;
+  let elapsedDays = 1;
+  const monthExpenses = expenses.filter((e) => e.monthId === month.id);
+
+  if (month.startDate) {
+    const parts = month.startDate.split('-');
+    const year = parseInt(parts[0], 10);
+    const mIndex = parseInt(parts[1], 10);
+    if (!isNaN(year) && !isNaN(mIndex) && mIndex >= 1 && mIndex <= 12) {
+      daysInMonth = new Date(year, mIndex, 0).getDate();
+    }
+  }
+
+  // Calculate elapsed days
+  const now = new Date();
+  const currentY = now.getFullYear();
+  const currentM = now.getMonth() + 1;
+  const currentD = now.getDate();
+
+  const monthParts = month.startDate ? month.startDate.split('-') : [];
+  const mYear = parseInt(monthParts[0], 10);
+  const mMonth = parseInt(monthParts[1], 10);
+
+  if (mYear === currentY && mMonth === currentM) {
+    // Current ongoing month: day of today
+    elapsedDays = Math.min(Math.max(1, currentD), daysInMonth);
+  } else if (month.isClosed || mYear < currentY || (mYear === currentY && mMonth < currentM)) {
+    // Past or closed month: if expenses exist, up to last expense date or full month
+    if (monthExpenses.length > 0) {
+      const dayNumbers = monthExpenses
+        .map((e) => parseInt(e.date.slice(8, 10), 10))
+        .filter((d) => !isNaN(d));
+      const maxExpenseDay = dayNumbers.length > 0 ? Math.max(...dayNumbers) : daysInMonth;
+      elapsedDays = Math.min(Math.max(1, maxExpenseDay), daysInMonth);
+    } else {
+      elapsedDays = daysInMonth;
+    }
+  } else {
+    // Future month
+    elapsedDays = 1;
+  }
+
+  const remainingDays = Math.max(0, daysInMonth - elapsedDays);
+  // Average daily spending so far
+  const dailyAverage = Number((elapsedDays > 0 ? totalSpent / elapsedDays : 0).toFixed(2));
+
+  // Projected total spend if current daily trend continues for remaining days
+  const projectedTotalSpend = Number((totalSpent + dailyAverage * remainingDays).toFixed(2));
+  const projectedPercent = Number(((projectedTotalSpend / targetBudget) * 100).toFixed(1));
+
+  // Recommended daily allowance remaining
+  const recommendedDailyRemaining =
+    remainingDays > 0 && remainingBudget > 0
+      ? Number((remainingBudget / remainingDays).toFixed(2))
+      : 0;
+
+  const isOverBudget = totalSpent > targetBudget;
+  // A trend warning is triggered if projected spend exceeds target and we have at least 1 day of spending history
+  const isTrendingOverBudget = !isOverBudget && projectedTotalSpend > targetBudget && totalSpent > 0;
+
+  let status: 'none' | 'good' | 'warning' | 'danger' = 'good';
+  let warningMessage: string | null = null;
+  let adviceMessage: string | null = null;
+
+  if (isOverBudget) {
+    status = 'danger';
+    const excess = Number((totalSpent - targetBudget).toFixed(2));
+    warningMessage = `Budget exceeded by ${formatCurrency(excess, currencySymbol)}!`;
+    adviceMessage = `Total expenses (${formatCurrency(totalSpent, currencySymbol)}) have surpassed your ${formatCurrency(targetBudget, currencySymbol)} monthly target.`;
+  } else if (isTrendingOverBudget) {
+    status = 'warning';
+    const projectedExcess = Number((projectedTotalSpend - targetBudget).toFixed(2));
+    warningMessage = `Spending trend warning: At current pace (${formatCurrency(dailyAverage, currencySymbol)}/day), projected expenses will exceed your budget by ${formatCurrency(projectedExcess, currencySymbol)}.`;
+    adviceMessage = `Projected month-end spend: ${formatCurrency(projectedTotalSpend, currencySymbol)} (${projectedPercent}% of budget). Limit daily spending to ${formatCurrency(recommendedDailyRemaining, currencySymbol)}/day for the remaining ${remainingDays} days to stay within budget.`;
+  } else {
+    status = 'good';
+    adviceMessage = `Spending is on track! Average pace: ${formatCurrency(dailyAverage, currencySymbol)}/day. Projected month-end: ${formatCurrency(projectedTotalSpend, currencySymbol)} (${projectedPercent}% of target).`;
+  }
+
+  return {
+    hasBudget: true,
+    targetBudget,
+    totalSpent,
+    remainingBudget,
+    percentSpent,
+    daysInMonth,
+    elapsedDays,
+    remainingDays,
+    dailyAverage,
+    recommendedDailyRemaining,
+    projectedTotalSpend,
+    projectedPercent,
+    isOverBudget,
+    isTrendingOverBudget,
+    excessAmount: isOverBudget ? totalSpent - targetBudget : Math.max(0, projectedTotalSpend - targetBudget),
+    status,
+    warningMessage,
+    adviceMessage,
+  };
 }

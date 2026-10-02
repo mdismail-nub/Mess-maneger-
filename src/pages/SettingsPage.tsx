@@ -22,8 +22,10 @@ import { useApp } from '../context/AppContext';
 import { exportAllData, importAllData } from '../db/indexedDB';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { AppInstallModal } from '../components/common/AppInstallModal';
+import { BudgetTrackerCard } from '../components/budget/BudgetTrackerCard';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useToast } from '../context/ToastContext';
+import { generateMonthSummaryCSV, generateExpenseReportCSV } from '../utils/exportUtils';
 
 interface SettingsPageProps {
   onLaunchOnboarding?: () => void;
@@ -31,8 +33,13 @@ interface SettingsPageProps {
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }) => {
   const {
+    activeMonth,
+    summary,
+    expenses,
+    members,
     settings,
     updateSettings,
+    setMonthBudget,
     loadDemoData,
     resetAllData,
     refreshData,
@@ -48,6 +55,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }
 
   const [messName, setMessName] = useState(settings.messName);
   const [currencySymbol, setCurrencySymbol] = useState(settings.currencySymbol);
+  const [defaultMonthlyBudget, setDefaultMonthlyBudget] = useState(
+    settings.defaultMonthlyBudget ? String(settings.defaultMonthlyBudget) : ''
+  );
   const [newCategory, setNewCategory] = useState('');
 
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -72,9 +82,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }
   // Save General Settings
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
+    const budgetVal = parseFloat(defaultMonthlyBudget);
     await updateSettings({
       messName: messName.trim() || 'MessMate',
       currencySymbol: currencySymbol.trim() || '৳',
+      defaultMonthlyBudget: !isNaN(budgetVal) && budgetVal > 0 ? budgetVal : undefined,
     });
   };
 
@@ -159,6 +171,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }
       setImportJsonPayload(null);
       setShowImportConfirm(false);
     }
+  };
+
+  const handleDownloadSummary = () => {
+    if (!activeMonth) {
+      error('No active month selected');
+      return;
+    }
+    generateMonthSummaryCSV(activeMonth, summary, settings);
+    success('Settlement CSV downloaded');
+  };
+
+  const handleDownloadExpenses = () => {
+    if (!activeMonth) {
+      error('No active month selected');
+      return;
+    }
+    const membersNameMap = new Map<string, string>();
+    members.forEach((m) => membersNameMap.set(m.id, m.name));
+    generateExpenseReportCSV(activeMonth, expenses, membersNameMap, settings);
+    success('Expense report CSV downloaded');
   };
 
   return (
@@ -258,7 +290,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Mess / Hostel Name
@@ -285,17 +317,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }
             />
             <span className="text-[11px] text-slate-400 mt-1 block">Default: Bangladeshi Taka (৳)</span>
           </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Default Monthly Budget
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              value={defaultMonthlyBudget}
+              onChange={(e) => setDefaultMonthlyBudget(e.target.value)}
+              placeholder="e.g. 10000"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-[11px] text-slate-400 mt-1 block">Pre-fills new months with this target</span>
+          </div>
         </div>
 
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
           >
             Save Preferences
           </button>
         </div>
       </form>
+
+      {/* Monthly Budget & Spending Target (Configured in Settings) */}
+      {activeMonth && (
+        <div className="space-y-2">
+          <BudgetTrackerCard
+            month={activeMonth}
+            expenses={expenses.filter((e) => e.monthId === activeMonth.id)}
+            currencySymbol={settings.currencySymbol}
+            totalExpenses={summary.totalExpenses}
+            onSetBudget={setMonthBudget}
+          />
+        </div>
+      )}
 
       {/* 2. Theme Customization */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
@@ -416,7 +477,72 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onLaunchOnboarding }
         </div>
       </div>
 
-      {/* 5. Developer Actions */}
+      {/* 5. Reports & CSV Exports */}
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <Download className="w-4 h-4 text-blue-600" />
+          <div>
+            <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+              Reports &amp; Data Exports
+            </h2>
+            <p className="text-xs text-slate-500">
+              Download CSV spreadsheets for monthly settlements and expense logs
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadSummary}
+            disabled={!activeMonth}
+            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            <span>Download Settlement (CSV)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadExpenses}
+            disabled={!activeMonth}
+            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+          >
+            <Download className="w-4 h-4 text-sky-600" />
+            <span>Download Expenses (CSV)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 6. App Installation */}
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                Install MessMate App
+              </h2>
+              <p className="text-xs text-slate-500">
+                Install on your mobile or desktop device for quick offline access
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDownloadAppClick}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer shrink-0"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>{isInstalled ? 'App Installed' : 'Install App'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 7. Developer Actions */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
         <div>
           <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">

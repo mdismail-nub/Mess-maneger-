@@ -9,17 +9,25 @@ interface MonthSwitcherModalProps {
 }
 
 export const MonthSwitcherModal: React.FC<MonthSwitcherModalProps> = ({ isOpen, onClose }) => {
-  const { months, activeMonth, setActiveMonthId, createMonth, toggleMonthClose, members } = useApp();
+  const { months, activeMonth, setActiveMonthId, createMonth, toggleMonthClose, members, settings } = useApp();
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [budget, setBudget] = useState('');
   const [copyMembers, setCopyMembers] = useState(true);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    await createMonth(name.trim(), startDate, copyMembers);
+    const numBudget = parseFloat(budget);
+    await createMonth(
+      name.trim(),
+      startDate,
+      copyMembers,
+      !isNaN(numBudget) && numBudget > 0 ? numBudget : undefined
+    );
     setName('');
+    setBudget('');
     setIsCreating(false);
     onClose();
   };
@@ -34,6 +42,7 @@ export const MonthSwitcherModal: React.FC<MonthSwitcherModalProps> = ({ isOpen, 
     const suggested = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
     setName(suggested);
     setStartDate(now.toISOString().slice(0, 10));
+    setBudget(settings.defaultMonthlyBudget ? String(settings.defaultMonthlyBudget) : '');
     setIsCreating(true);
   };
 
@@ -75,6 +84,24 @@ export const MonthSwitcherModal: React.FC<MonthSwitcherModalProps> = ({ isOpen, 
               onChange={(e) => setStartDate(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Target Monthly Budget ({settings.currencySymbol}) (Optional)
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="1"
+              placeholder="e.g. 10000"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            />
+            <span className="text-[11px] text-slate-400 mt-1 block">
+              Enables daily spending trend analysis and budget warnings.
+            </span>
           </div>
 
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
@@ -183,8 +210,9 @@ export const MonthSwitcherModal: React.FC<MonthSwitcherModalProps> = ({ isOpen, 
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 block">
                           Started: {m.startDate} • {m.memberIds?.length || 0} members
+                          {m.budget ? ` • Budget: ${settings.currencySymbol}${m.budget.toLocaleString()}` : ''}
                         </span>
                       </div>
                     </button>

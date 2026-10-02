@@ -288,37 +288,65 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <Wallet className="w-5 h-5 text-emerald-600" />
           <div>
-            <h2 className="font-bold text-base text-slate-900 dark:text-white">Financial Audit</h2>
-            <p className="text-xs text-slate-500">Totals collected, spent, and balances pending</p>
+            <h2 className="font-bold text-base text-slate-900 dark:text-white">Financial Audit &amp; Reconciliation</h2>
+            <p className="text-xs text-slate-500">Separation of food expenses (meal rate) vs shared utilities (direct split)</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Meal Expenses</span>
+            <span className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(totalMealExpenses, settings.currencySymbol)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Forms meal rate</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Shared Expenses</span>
+            <span className="text-lg sm:text-xl font-black text-indigo-600 dark:text-indigo-400">
+              {formatCurrency(totalSharedExpenses, settings.currencySymbol)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Wi-Fi, utilities, rent</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Meal Rate</span>
+            <span className="text-lg sm:text-xl font-black text-blue-600 dark:text-blue-400 font-mono">
+              {formatCurrency(currentMealRate, settings.currencySymbol)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">{totalMeals} meals</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Spent</span>
-            <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+            <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
               {formatCurrency(totalExpenses, settings.currencySymbol)}
             </span>
+            {activeMonth.budget && (
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                Target: {formatCurrency(activeMonth.budget, settings.currencySymbol)}
+              </span>
+            )}
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Collected</span>
-            <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            <span className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400">
               {formatCurrency(totalPayments, settings.currencySymbol)}
             </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Net Dues Pending</span>
-            <span className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400">
-              {formatCurrency(totalOutstandingDue, settings.currencySymbol)}
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              Deposits collected
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Net Receivables</span>
-            <span className="text-xl sm:text-2xl font-black text-teal-600 dark:text-teal-400">
-              {formatCurrency(totalReceivable, settings.currencySymbol)}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Net Dues Pending</span>
+            <span className="text-lg sm:text-xl font-black text-rose-600 dark:text-rose-400">
+              {formatCurrency(totalOutstandingDue, settings.currencySymbol)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              Owed to mess
             </span>
           </div>
         </div>

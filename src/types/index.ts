@@ -11,6 +11,7 @@ export interface Month {
   name: string; // e.g., "September 2026"
   startDate: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
+  budget?: number; // Target monthly budget for expenses
   isClosed: boolean;
   memberIds: string[];
   createdAt: string;
@@ -51,6 +52,7 @@ export interface Expense {
   splitMethod?: SharedExpenseSplitMethod;
   customShares?: Record<string, number>; // memberId -> amount
   note?: string;
+  needsReview?: boolean; // Set to true if an existing expense needs classification confirmation
   createdAt: string;
   updatedAt: string;
 }
@@ -74,7 +76,29 @@ export interface AppSettings {
   currencyCode: string;
   theme: 'light' | 'dark' | 'system';
   categories: string[];
+  defaultMonthlyBudget?: number;
   updatedAt: string;
+}
+
+export interface BudgetAnalysis {
+  hasBudget: boolean;
+  targetBudget: number;
+  totalSpent: number;
+  remainingBudget: number;
+  percentSpent: number;
+  daysInMonth: number;
+  elapsedDays: number;
+  remainingDays: number;
+  dailyAverage: number;
+  recommendedDailyRemaining: number;
+  projectedTotalSpend: number;
+  projectedPercent: number;
+  isOverBudget: boolean;
+  isTrendingOverBudget: boolean;
+  excessAmount: number;
+  status: 'none' | 'good' | 'warning' | 'danger';
+  warningMessage: string | null;
+  adviceMessage: string | null;
 }
 
 export interface ActivityLog {

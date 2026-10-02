@@ -10,20 +10,23 @@ import {
   Legend,
   BarChart,
   Bar,
+  ReferenceLine,
 } from 'recharts';
 import { Expense } from '../../types';
-import { formatCurrency } from '../../utils/calculations';
+import { formatCurrency, isMealExpense } from '../../utils/calculations';
 
 interface SpendingTrendChartProps {
   expenses: Expense[];
   currencySymbol: string;
   monthName: string;
+  budget?: number;
 }
 
 export const SpendingTrendChart: React.FC<SpendingTrendChartProps> = ({
   expenses,
   currencySymbol,
   monthName,
+  budget,
 }) => {
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
 
@@ -43,7 +46,7 @@ export const SpendingTrendChart: React.FC<SpendingTrendChartProps> = ({
           total: 0,
         };
       }
-      if (e.type === 'meal') {
+      if (isMealExpense(e)) {
         map[e.date].meal += e.amount;
       } else {
         map[e.date].shared += e.amount;
@@ -131,12 +134,39 @@ export const SpendingTrendChart: React.FC<SpendingTrendChartProps> = ({
                           <span>Total to date:</span>
                           <span className="font-mono">{formatCurrency(data.cumulative, currencySymbol)}</span>
                         </div>
+                        {budget && budget > 0 && (
+                          <div className={`flex justify-between gap-3 text-[11px] pt-0.5 ${
+                            data.cumulative > budget ? 'text-rose-400 font-semibold' : 'text-slate-400'
+                          }`}>
+                            <span>Budget ({currencySymbol}{budget.toLocaleString()}):</span>
+                            <span className="font-mono">
+                              {data.cumulative > budget
+                                ? `+${formatCurrency(data.cumulative - budget, currencySymbol)} over`
+                                : `${formatCurrency(budget - data.cumulative, currencySymbol)} left`}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   }
                   return null;
                 }}
               />
+              {budget && budget > 0 && (
+                <ReferenceLine
+                  y={budget}
+                  stroke="#f43f5e"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{
+                    value: `Budget: ${currencySymbol}${budget.toLocaleString()}`,
+                    fill: '#f43f5e',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    position: 'top',
+                  }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey="cumulative"
@@ -159,9 +189,17 @@ export const SpendingTrendChart: React.FC<SpendingTrendChartProps> = ({
                     return (
                       <div className="bg-slate-900 text-white p-2.5 rounded-lg text-xs shadow-md space-y-1">
                         <p className="font-semibold text-slate-300 border-b border-slate-800 pb-1">{data.date}</p>
-                        <div className="flex justify-between gap-3 text-slate-300">
-                          <span>Day total:</span>
-                          <span className="font-mono font-semibold">{formatCurrency(data.total, currencySymbol)}</span>
+                        <div className="flex justify-between gap-3 text-emerald-400">
+                          <span>Meal Expense (In Rate):</span>
+                          <span className="font-mono font-semibold">{formatCurrency(data.meal, currencySymbol)}</span>
+                        </div>
+                        <div className="flex justify-between gap-3 text-indigo-400">
+                          <span>Shared Expense (Excluded):</span>
+                          <span className="font-mono font-semibold">{formatCurrency(data.shared, currencySymbol)}</span>
+                        </div>
+                        <div className="flex justify-between gap-3 text-slate-300 pt-0.5 border-t border-slate-800 font-bold">
+                          <span>Day Total:</span>
+                          <span className="font-mono">{formatCurrency(data.total, currencySymbol)}</span>
                         </div>
                       </div>
                     );
@@ -169,7 +207,9 @@ export const SpendingTrendChart: React.FC<SpendingTrendChartProps> = ({
                   return null;
                 }}
               />
-              <Bar dataKey="total" name="Day Total" fill="#2563eb" radius={[3, 3, 0, 0]} />
+              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} iconType="circle" />
+              <Bar dataKey="meal" name="Meal Expenses (In Rate)" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="shared" name="Shared Expenses (Excluded)" stackId="a" fill="#6366f1" radius={[3, 3, 0, 0]} />
             </BarChart>
           )}
         </ResponsiveContainer>

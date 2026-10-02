@@ -211,7 +211,7 @@ export const FullPageOnboarding: React.FC<FullPageOnboardingProps> = ({ onComple
                   <div>
                     <h3 className="font-bold text-sm text-white">Live Meal Rate</h3>
                     <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                      Instantly updates as bazaar expenses and meals are logged: Food Cost ÷ Total Meals.
+                      Instantly updates as bazaar expenses and meals are logged in real time.
                     </p>
                   </div>
                 </div>

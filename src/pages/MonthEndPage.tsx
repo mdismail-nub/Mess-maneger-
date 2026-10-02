@@ -36,8 +36,6 @@ export const MonthEndPage: React.FC<MonthEndPageProps> = ({ onNavigate }) => {
   } = useApp();
   const { success } = useToast();
 
-  const [showExplanation, setShowExplanation] = useState(false);
-
   if (!activeMonth) {
     return (
       <div className="py-12 text-center max-w-md mx-auto">
@@ -138,38 +136,59 @@ export const MonthEndPage: React.FC<MonthEndPageProps> = ({ onNavigate }) => {
 
       {/* Top Financial Summary */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 divide-y sm:divide-y-0 divide-slate-100 dark:divide-slate-800">
+          {/* Total Meals */}
           <div className="pt-2 sm:pt-0 sm:pr-2 first:pt-0">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+              Total Meals
+            </span>
+            <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+              {totalMeals}
+            </span>
+          </div>
+
+          {/* Total Meal Expenses */}
+          <div className="pt-2 sm:pt-0 sm:px-2">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+              Meal Expenses
+            </span>
+            <span className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
+              {formatCurrency(totalMealExpenses, settings.currencySymbol)}
+            </span>
+          </div>
+
+          {/* Final Meal Rate */}
+          <div className="pt-2 sm:pt-0 sm:px-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
               Meal Rate
             </span>
             <span className="text-xl sm:text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tabular-nums">
               {formatCurrency(currentMealRate, settings.currencySymbol)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">{totalMeals} total meals</span>
           </div>
 
-          <div className="pt-2 sm:pt-0 sm:px-4">
+          {/* Total Shared Expenses */}
+          <div className="pt-2 sm:pt-0 sm:px-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
-              Total Expenses
+              Shared Expenses
             </span>
-            <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
-              {formatCurrency(totalExpenses, settings.currencySymbol)}
+            <span className="text-xl sm:text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
+              {formatCurrency(totalSharedExpenses, settings.currencySymbol)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">Food: {formatCurrency(totalMealExpenses, settings.currencySymbol)}</span>
           </div>
 
-          <div className="pt-2 sm:pt-0 sm:px-4">
+          {/* Total Payments */}
+          <div className="pt-2 sm:pt-0 sm:px-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
-              Total Paid
+              Total Payments
             </span>
             <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
               {formatCurrency(totalPayments, settings.currencySymbol)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">Deposits collected</span>
           </div>
 
-          <div className="pt-2 sm:pt-0 sm:px-4">
+          {/* Net Settlement Balance */}
+          <div className="pt-2 sm:pt-0 sm:pl-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
               Net Balance
             </span>
@@ -183,64 +202,54 @@ export const MonthEndPage: React.FC<MonthEndPageProps> = ({ onNavigate }) => {
               {totalPayments - totalExpenses >= 0 ? '+' : ''}
               {formatCurrency(totalPayments - totalExpenses, settings.currencySymbol)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">
-              {totalOutstandingDue > 0 ? `Outstanding: ${formatCurrency(totalOutstandingDue, settings.currencySymbol)}` : 'Balanced'}
-            </span>
           </div>
         </div>
       </div>
 
       {/* Member Settlement Breakdown */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white">
             Member Settlement
           </h2>
-          <button
-            onClick={() => setShowExplanation(!showExplanation)}
-            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer no-print"
-          >
-            {showExplanation ? 'Hide formula' : 'Show formula'}
-          </button>
         </div>
 
-        {showExplanation && (
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1">
-            <p>• Meal Rate = Food Expenses ({formatCurrency(totalMealExpenses, settings.currencySymbol)}) ÷ Total Meals ({totalMeals}) = {formatCurrency(currentMealRate, settings.currencySymbol)}</p>
-            <p>• Food Cost = Member Meals × Meal Rate</p>
-            <p>• Total Payable = Food Cost + Member's Share of Utilities</p>
-            <p>• Balance = Total Payable - Paid</p>
-          </div>
-        )}
-
         {/* Desktop View Table */}
-        <div className="hidden sm:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-medium">
                 <th className="py-2.5 px-4">Member</th>
-                <th className="py-2.5 px-3 text-right">Meals</th>
-                <th className="py-2.5 px-3 text-right">Cost</th>
-                <th className="py-2.5 px-3 text-right">Paid</th>
-                <th className="py-2.5 px-4 text-right">Settlement</th>
+                <th className="py-2.5 px-3 text-right">Total Meals</th>
+                <th className="py-2.5 px-3 text-right">Food Cost</th>
+                <th className="py-2.5 px-3 text-right">Shared Share</th>
+                <th className="py-2.5 px-3 text-right">Total Payable</th>
+                <th className="py-2.5 px-3 text-right">Paid Amount</th>
+                <th className="py-2.5 px-4 text-right">Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {memberSummaries.map((m) => (
                 <tr key={m.member.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                  <td className="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">
+                  <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
                     {m.member.name}
                   </td>
-                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right text-slate-600 dark:text-slate-300 tabular-nums">
                     {m.totalMeals}
                   </td>
-                  <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    {formatCurrency(m.foodCost, settings.currencySymbol)}
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
+                    {formatCurrency(m.sharedCost, settings.currencySymbol)}
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">
                     {formatCurrency(m.totalPayable, settings.currencySymbol)}
                   </td>
-                  <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300 tabular-nums">
                     {formatCurrency(m.totalPaid, settings.currencySymbol)}
                   </td>
-                  <td className="py-2.5 px-4 text-right font-semibold font-mono tabular-nums">
+                  <td className="py-3 px-4 text-right font-semibold font-mono tabular-nums">
                     {m.status === 'due' && (
                       <span className="text-rose-600 dark:text-rose-400">
                         Owes {formatCurrency(m.balance, settings.currencySymbol)}
@@ -264,39 +273,57 @@ export const MonthEndPage: React.FC<MonthEndPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Mobile View: High-clarity Cards */}
-        <div className="sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
           {memberSummaries.map((m) => (
-            <div key={m.member.id} className="p-3 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-semibold text-slate-900 dark:text-white block">
+            <div key={m.member.id} className="p-3.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-slate-900 dark:text-white">
                   {m.member.name}
                 </span>
-                <span className="text-[11px] text-slate-400">
-                  {m.totalMeals} meals • Cost: {formatCurrency(m.totalPayable, settings.currencySymbol)}
-                </span>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[11px] text-slate-400 block font-mono">
-                  Paid: {formatCurrency(m.totalPaid, settings.currencySymbol)}
-                </span>
-                <span className="font-semibold font-mono">
+                <span className="font-semibold font-mono text-xs">
                   {m.status === 'due' && (
-                    <span className="text-rose-600 dark:text-rose-400">
+                    <span className="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded">
                       Owes {formatCurrency(m.balance, settings.currencySymbol)}
                     </span>
                   )}
                   {m.status === 'receivable' && (
-                    <span className="text-emerald-600 dark:text-emerald-400">
+                    <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded">
                       Receives {formatCurrency(Math.abs(m.balance), settings.currencySymbol)}
                     </span>
                   )}
                   {m.status === 'settled' && (
-                    <span className="text-slate-400">
+                    <span className="text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                       Settled
                     </span>
                   )}
                 </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg">
+                  <span className="text-slate-400 block text-[10px]">Meals &amp; Food Cost:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {m.totalMeals} meals • {formatCurrency(m.foodCost, settings.currencySymbol)}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg">
+                  <span className="text-slate-400 block text-[10px]">Shared Expense Share:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {formatCurrency(m.sharedCost, settings.currencySymbol)}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg">
+                  <span className="text-slate-400 block text-[10px]">Total Payable:</span>
+                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                    {formatCurrency(m.totalPayable, settings.currencySymbol)}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg">
+                  <span className="text-slate-400 block text-[10px]">Paid Amount:</span>
+                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                    {formatCurrency(m.totalPaid, settings.currencySymbol)}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

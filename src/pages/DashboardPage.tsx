@@ -1,22 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   UtensilsCrossed,
   Receipt,
   CreditCard,
   Plus,
-  Download,
-  Calendar,
   ChevronDown,
-  TrendingUp,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/calculations';
 import { NavTab } from '../components/layout/AppLayout';
 import { MonthSwitcherModal } from '../components/layout/MonthSwitcherModal';
-import { SpendingTrendChart } from '../components/dashboard/SpendingTrendChart';
-import { generateMonthSummaryCSV, generateExpenseReportCSV } from '../utils/exportUtils';
-import { AppInstallModal } from '../components/common/AppInstallModal';
-import { useToast } from '../context/ToastContext';
+import { MemberBalanceChart } from '../components/dashboard/MemberBalanceChart';
 
 interface DashboardPageProps {
   onNavigate: (tab: NavTab) => void;
@@ -26,19 +20,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const {
     activeMonth,
     summary,
-    expenses,
     settings,
   } = useApp();
-  const { success } = useToast();
 
   const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
-  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
-  const [showChart, setShowChart] = useState(false);
-
-  const monthExpenses = useMemo(() => {
-    if (!activeMonth) return [];
-    return expenses.filter((e) => e.monthId === activeMonth.id);
-  }, [expenses, activeMonth]);
 
   if (!activeMonth) {
     return (
@@ -58,6 +43,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   const {
     totalMeals,
+    totalMealExpenses,
+    totalSharedExpenses,
     currentMealRate,
     totalExpenses,
     totalPayments,
@@ -67,20 +54,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   // Net mess balance: total collected payments minus total expenses
   const netMessBalance = totalPayments - totalExpenses;
 
-  const handleDownloadSummary = () => {
-    generateMonthSummaryCSV(activeMonth, summary, settings);
-    success('Settlement CSV downloaded');
-  };
-
-  const handleDownloadExpenses = () => {
-    const membersNameMap = new Map<string, string>();
-    memberSummaries.forEach((m) => membersNameMap.set(m.member.id, m.member.name));
-    generateExpenseReportCSV(activeMonth, monthExpenses, membersNameMap, settings);
-    success('Expense report CSV downloaded');
-  };
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <MonthSwitcherModal
         isOpen={isMonthModalOpen}
         onClose={() => setIsMonthModalOpen(false)}
@@ -97,11 +72,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition" />
           </button>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {memberSummaries.length} members • {activeMonth.isClosed ? 'Closed period' : 'Active period'}
+            {memberSummaries.length} members • {activeMonth.isClosed ? 'Closed' : 'Active'}
           </p>
         </div>
 
-        {/* Action Buttons: 1 Primary (+ Meal) and 2 Secondary */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => onNavigate('meals')}
@@ -127,10 +102,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* COMPACT SUMMARY: Meals, Meal Rate, Expenses, Balance */}
+      {/* CLEAN KPI SUMMARY: Meals, Meal Rate, Expenses, Balance */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
-          <div className="pt-2 sm:pt-0 sm:px-2 first:pt-0 first:px-0">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 divide-y sm:divide-y-0 divide-slate-100 dark:divide-slate-800">
+          <div className="pt-2 sm:pt-0 sm:pr-2 first:pt-0">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
               Meals
             </span>
@@ -139,25 +114,43 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </span>
           </div>
 
-          <div className="pt-2 sm:pt-0 sm:px-4">
+          <div className="pt-2 sm:pt-0 sm:px-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
               Meal Rate
             </span>
-            <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
+            <span className="text-xl sm:text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tabular-nums">
               {formatCurrency(currentMealRate, settings.currencySymbol)}
             </span>
           </div>
 
-          <div className="pt-2 sm:pt-0 sm:px-4">
+          <div className="pt-2 sm:pt-0 sm:px-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
-              Expenses
+              Meal Expenses
+            </span>
+            <span className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
+              {formatCurrency(totalMealExpenses, settings.currencySymbol)}
+            </span>
+          </div>
+
+          <div className="pt-2 sm:pt-0 sm:px-2">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+              Shared Expenses
+            </span>
+            <span className="text-xl sm:text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
+              {formatCurrency(totalSharedExpenses, settings.currencySymbol)}
+            </span>
+          </div>
+
+          <div className="pt-2 sm:pt-0 sm:px-2">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+              Total Expenses
             </span>
             <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
               {formatCurrency(totalExpenses, settings.currencySymbol)}
             </span>
           </div>
 
-          <div className="pt-2 sm:pt-0 sm:px-4">
+          <div className="pt-2 sm:pt-0 sm:pl-2">
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
               Mess Balance
             </span>
@@ -177,11 +170,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* GRAPH: INDICATES MEALS, MONEY + OR - */}
+      <MemberBalanceChart
+        memberSummaries={memberSummaries}
+        currencySymbol={settings.currencySymbol}
+      />
+
       {/* MEMBER SUMMARY TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs">
         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-            Current Month
+            Members
           </h2>
           <button
             onClick={() => onNavigate('monthend')}
@@ -204,20 +203,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden sm:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-medium">
                     <th className="py-2.5 px-4">Member</th>
                     <th className="py-2.5 px-3 text-right">Meals</th>
-                    <th className="py-2.5 px-3 text-right">Cost</th>
+                    <th className="py-2.5 px-3 text-right">Meal Cost</th>
+                    <th className="py-2.5 px-3 text-right">Shared Cost</th>
+                    <th className="py-2.5 px-3 text-right">Total Cost</th>
                     <th className="py-2.5 px-3 text-right">Paid</th>
                     <th className="py-2.5 px-4 text-right">Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                   {memberSummaries.map((m) => {
-                    // Net balance for this member: money paid minus their total share of costs
                     const diff = m.totalPaid - m.totalPayable;
                     return (
                       <tr key={m.member.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
@@ -228,6 +228,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                           {m.totalMeals}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 tabular-nums">
+                          {formatCurrency(m.foodCost, settings.currencySymbol)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 tabular-nums">
+                          {formatCurrency(m.sharedCost, settings.currencySymbol)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white tabular-nums">
                           {formatCurrency(m.totalPayable, settings.currencySymbol)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 tabular-nums">
@@ -255,26 +261,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               </table>
             </div>
 
-            {/* Mobile Compact Cards */}
-            <div className="sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+            {/* Mobile Clean List */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
               {memberSummaries.map((m) => {
                 const diff = m.totalPaid - m.totalPayable;
                 return (
-                  <div key={m.member.id} className="p-3 flex items-center justify-between text-xs">
+                  <div key={m.member.id} className="p-3.5 flex items-center justify-between gap-3 text-xs">
                     <div>
-                      <span className="font-semibold text-slate-900 dark:text-white block">
+                      <span className="font-bold text-sm text-slate-900 dark:text-white block">
                         {m.member.name}
                       </span>
-                      <span className="text-[11px] text-slate-400">
-                        {m.totalMeals} meals • Cost: {formatCurrency(m.totalPayable, settings.currencySymbol)}
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 block">
+                        {m.totalMeals} meals • Paid: {formatCurrency(m.totalPaid, settings.currencySymbol)} • Cost: {formatCurrency(m.totalPayable, settings.currencySymbol)}
                       </span>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[11px] text-slate-400 block font-mono">
-                        Paid: {formatCurrency(m.totalPaid, settings.currencySymbol)}
-                      </span>
-                      <span className="font-mono font-bold">
+                    <div className="text-right shrink-0">
+                      <span className="font-mono font-bold text-sm">
                         {diff > 0 ? (
                           <span className="text-emerald-600 dark:text-emerald-400">
                             +{formatCurrency(diff, settings.currencySymbol)}
@@ -289,6 +292,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                           </span>
                         )}
                       </span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {diff > 0 ? 'Receivable' : diff < 0 ? 'Due' : 'Settled'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -297,67 +303,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           </>
         )}
       </div>
-
-      {/* OPTIONAL MINIMAL SPENDING TREND */}
-      {monthExpenses.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
-              <span>Spending Overview</span>
-            </span>
-            <button
-              onClick={() => setShowChart(!showChart)}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-            >
-              {showChart ? 'Hide chart' : 'Show chart'}
-            </button>
-          </div>
-
-          {showChart && (
-            <div className="pt-2">
-              <SpendingTrendChart
-                expenses={monthExpenses}
-                currencySymbol={settings.currencySymbol}
-                monthName={activeMonth.name}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* FOOTER ACTIONS: EXPORT & INSTALL */}
-      <div className="flex items-center justify-between gap-3 text-xs pt-2 text-slate-500 flex-wrap">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleDownloadSummary}
-            className="hover:text-blue-600 flex items-center gap-1 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download Settlement (CSV)</span>
-          </button>
-          <span>•</span>
-          <button
-            onClick={handleDownloadExpenses}
-            className="hover:text-blue-600 flex items-center gap-1 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download Expenses (CSV)</span>
-          </button>
-        </div>
-
-        <button
-          onClick={() => setIsInstallModalOpen(true)}
-          className="text-blue-600 hover:underline cursor-pointer font-medium"
-        >
-          Install App
-        </button>
-      </div>
-
-      <AppInstallModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-      />
     </div>
   );
 };
